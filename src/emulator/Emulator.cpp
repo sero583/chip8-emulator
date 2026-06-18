@@ -9,8 +9,8 @@
 #include <QIODevice>
 
 void Emulator::reset() {
-    cpu.reset();
     ram.reset();
+    cpu.reset();
 }
 
 void Emulator::loadROM(const std::vector<uint8_t>& rom) {

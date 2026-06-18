@@ -33,7 +33,12 @@ int main(int argc, char *argv[]) {
             return;
         }
 
-        emulator.cycleCpu();
+        try {
+            emulator.cycleCpu();
+        } catch (const std::exception& ex) {
+            isRunning = false;
+            QMessageBox::critical(&window, "Emulation error", ex.what());
+        }
     });
     
     // Setup app menus
