@@ -3,10 +3,6 @@
 #include <stdexcept>
 #include <string>
 
-constexpr uint16_t RAW_MEM_MIN = 0x000;
-constexpr uint16_t RAW_MEM_MAX = 0xFFF;
-constexpr uint16_t PROGRAM_MEM_MIN = 0x200;
-
 Ram::Ram() {}
 
 void Ram::reset() {
@@ -39,11 +35,11 @@ Ram::AddressValidationResult Ram::validateAddressInRange(
 }
 
 Ram::AddressValidationResult Ram::validateRawMemoryAddress(uint16_t address, bool throwException) const {
-    return validateAddressInRange(address, RAW_MEM_MIN, RAW_MEM_MAX, throwException, "address");
+    return validateAddressInRange(address, Ram::RAW_MEM_MIN, Ram::RAW_MEM_MAX, throwException, "address");
 }
 
 Ram::AddressValidationResult Ram::validateProgramMemoryAddress(uint16_t address, bool throwException) const {
-    return validateAddressInRange(address, PROGRAM_MEM_MIN, RAW_MEM_MAX, throwException, "startAddress");
+    return validateAddressInRange(address, Ram::PROGRAM_MEM_MIN, Ram::RAW_MEM_MAX, throwException, "startAddress");
 }
 
 uint8_t Ram::read(uint16_t address) const {

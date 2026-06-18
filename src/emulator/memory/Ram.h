@@ -1,11 +1,17 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
 class Ram {
 public:
+    static constexpr uint16_t RAW_MEM_MIN = 0x000;
+    static constexpr uint16_t RAW_MEM_MAX = 0xFFF;
+    static constexpr uint16_t PROGRAM_MEM_MIN = 0x200;
+    static constexpr std::size_t MEMORY_SIZE = 4096;
+
     /**
      * Result of a memory address bounds check.
      */
@@ -109,5 +115,5 @@ private:
     AddressValidationResult validateProgramMemoryAddress(uint16_t address, bool throwException = false) const;
 
     // RAM must start zero-initialized.
-    std::array<uint8_t, 4096> memory{};
+    std::array<uint8_t, Ram::MEMORY_SIZE> memory{};
 };

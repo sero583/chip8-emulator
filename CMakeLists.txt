@@ -8,8 +8,14 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 qt_standard_project_setup()
 
-qt_add_executable(CHIP8_Emulator
+add_executable(CHIP8_Emulator
     src/main.cpp
+    # RAM
+    src/emulator/memory/Ram.h
+    src/emulator/memory/Ram.cpp
+    # Emulator
+    src/emulator/Emulator.h
+    src/emulator/Emulator.cpp
 )
 
 target_link_libraries(CHIP8_Emulator PRIVATE Qt6::Widgets)
@@ -18,3 +24,21 @@ set_target_properties(CHIP8_Emulator PROPERTIES
     WIN32_EXECUTABLE ON
     MACOSX_BUNDLE ON
 )
+
+enable_testing()
+
+find_package(Catch2 CONFIG REQUIRED)
+include(CTest)
+include(Catch)
+
+add_executable(CHIP8_Tests
+    # RAM Test
+    tests/ram_tests.cpp
+    src/emulator/memory/Ram.h
+    src/emulator/memory/Ram.cpp
+)
+
+target_include_directories(CHIP8_Tests PRIVATE src)
+target_link_libraries(CHIP8_Tests PRIVATE Catch2::Catch2WithMain)
+
+catch_discover_tests(CHIP8_Tests)

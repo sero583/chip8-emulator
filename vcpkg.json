@@ -4,6 +4,7 @@
       "name": "qtbase",
       "default-features": false,
       "features": ["widgets"]
-    }
+    },
+    "catch2"
   ]
 }
