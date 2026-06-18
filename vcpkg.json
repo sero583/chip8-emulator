@@ -1,5 +1,9 @@
 {
   "dependencies": [
-    "sdl3"
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": ["widgets"]
+    }
   ]
 }
