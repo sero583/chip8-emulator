@@ -16,8 +16,8 @@ public:
 
     /**
      * Resets the emulator's state, including RAM and any other components.
-      * Currently, this only resets RAM, but it can be expanded in the future
-      * to include other subsystems as needed.
+     * Currently, this only resets RAM, but it can be expanded in the future
+     * to include other subsystems as needed.
      */
     void reset();
 
