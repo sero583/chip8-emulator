@@ -10,14 +10,18 @@ qt_standard_project_setup()
 
 add_executable(CHIP8_Emulator
     src/main.cpp
-    # RAM
+
     src/emulator/memory/Ram.h
     src/emulator/memory/Ram.cpp
-    # Emulator
+
+    src/emulator/cpu/Cpu.h
+    src/emulator/cpu/Cpu.cpp
+
     src/emulator/Emulator.h
     src/emulator/Emulator.cpp
 )
 
+target_include_directories(CHIP8_Emulator PRIVATE src)
 target_link_libraries(CHIP8_Emulator PRIVATE Qt6::Widgets)
 
 set_target_properties(CHIP8_Emulator PROPERTIES
@@ -32,7 +36,6 @@ include(CTest)
 include(Catch)
 
 add_executable(CHIP8_Tests
-    # RAM Test
     tests/ram_tests.cpp
     src/emulator/memory/Ram.h
     src/emulator/memory/Ram.cpp

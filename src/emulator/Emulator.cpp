@@ -9,6 +9,7 @@
 #include <QIODevice>
 
 void Emulator::reset() {
+    cpu.reset();
     ram.reset();
 }
 
@@ -29,4 +30,8 @@ bool Emulator::loadROMFromFile(const QString& filePath) {
 
     ram.loadROM(rom);
     return true;
+}
+
+void Emulator::cycleCpu() {
+    cpu.cycle();
 }
