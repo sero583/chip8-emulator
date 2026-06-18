@@ -1,13 +1,38 @@
 #include <QAction>
 #include <QApplication>
 #include <QFileDialog>
+#include <QFrame>
+#include <QLabel>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QTimer>
+#include <QVBoxLayout>
+#include <QWidget>
 
 #include "emulator/Emulator.h"
+
+namespace {
+    QWidget* createEmulationPlaceholder(QWidget* parent) {
+        QWidget* container = new QWidget(parent);
+
+        QVBoxLayout* layout = new QVBoxLayout(container);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(0);
+
+        QLabel* label = new QLabel("Please select a ROM to start emulation", container);
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet(
+            "background-color: #242424;"
+            "color: #9a9a9a;"
+            "font-size: 16px;"
+        );
+
+        layout->addWidget(label);
+        return container;
+    }
+}
 
 int main(int argc, char *argv[]) {
     // Init QT
@@ -17,6 +42,17 @@ int main(int argc, char *argv[]) {
     QMainWindow window;
     window.setWindowTitle("CHIP-8 Emulator");
     window.resize(800, 600);
+
+    // Set central content (emulation view or when disabled placeholder text)
+    QWidget *centralWidget = new QWidget(&window);
+    QVBoxLayout *layout = new QVBoxLayout(centralWidget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    // Placeholder content before ROM is loaded
+    QWidget *emulationPlaceholder = createEmulationPlaceholder(centralWidget);
+    layout->addWidget(emulationPlaceholder);
+    window.setCentralWidget(centralWidget);
 
     // Init Emulator
     Emulator emulator;
@@ -38,6 +74,10 @@ int main(int argc, char *argv[]) {
         } catch (const std::exception& ex) {
             isRunning = false;
             QMessageBox::critical(&window, "Emulation error", ex.what());
+
+            // Show placeholder again when emulation stops due to an error
+            emulationPlaceholder = createEmulationPlaceholder(&window);
+            layout->addWidget(emulationPlaceholder);
         }
     });
     
@@ -60,6 +100,7 @@ int main(int argc, char *argv[]) {
     emulationMenu->addAction(resetEmulationAction);
     QAction *stepEmulationAction = new QAction("Step Emulation", &window);
     emulationMenu->addAction(stepEmulationAction);
+
 
     // Add load ROM action to file menu
     QAction *loadRomAction = new QAction("Load ROM", &window);
@@ -89,6 +130,10 @@ int main(int argc, char *argv[]) {
         } else {
             hasLoadedRom = true;
             isRunning = true;
+
+            // Remove placeholder label when ROM is loaded
+            layout->removeWidget(emulationPlaceholder);
+            delete emulationPlaceholder;
         }
     });
 
