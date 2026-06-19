@@ -22,8 +22,8 @@ uint16_t Cpu::fetchOpcode(bool incrementPc) {
     return opcode;
 }
 
-void Cpu::cycle() {
-    executeOpcode(fetchOpcode());
+bool Cpu::cycle() {
+    return executeOpcode(fetchOpcode());
 }
 
 uint16_t Cpu::getProgramCounter() const {
@@ -35,7 +35,7 @@ uint8_t Cpu::getRegister(uint8_t index) const {
 }
 
 
-void Cpu::executeOpcode(uint16_t opcode) {
+bool Cpu::executeOpcode(uint16_t opcode) {
      // 1. upper nibble is instruction
     uint16_t instruction = opcode & 0xF000;
     // 2. register index is second nibble, need to shift by 8 to get actual number and remove remaints of two nibbles
@@ -53,7 +53,8 @@ void Cpu::executeOpcode(uint16_t opcode) {
         case 0x0000:
             if (opcode == 0x00E0) {
                 // 00E0: clear display
-                // TODO: implement screen clear
+                displayBufferRef.fill(0);
+                return true;
             } else if (opcode == 0x00EE) {
                 // 00EE: return from subroutine
                 sp--;
@@ -89,10 +90,61 @@ void Cpu::executeOpcode(uint16_t opcode) {
             i = nnn;
         break;
         // Draw sprite on Position (Vx, Vy) at height N from memory address I, VF shows collision
-        case 0xD000:
-            // TODO: Implement display & drawing...
-        break;
-        default:
-            throw std::runtime_error("Unsupported opcode: " + std::to_string(opcode));
+        case 0xD000: {
+            // DXYN:
+            // Draw a sprite at coordinate (VX, VY).
+            // The sprite is stored starting at memory address I.
+            // The sprite is always 8 pixels wide and N pixels tall.
+            // Drawing uses XOR.
+            // VF is set to 1 if at least one pixel is turned off during drawing.
+
+            uint8_t xIndex = (opcode & 0x0F00) >> 8;
+            uint8_t yIndex = (opcode & 0x00F0) >> 4;
+            uint8_t height = opcode & 0x000F;
+
+            uint8_t xPos = V[xIndex];
+            uint8_t yPos = V[yIndex];
+
+            // Clear the collision flag before drawing.
+            V[0xF] = 0;
+
+            // Each sprite row is 1 byte in memory.
+            for (uint8_t row = 0; row < height; ++row) {
+                uint8_t spriteByte = ramRef.read(i + row);
+
+                // A sprite is always 8 bits wide.
+                for (uint8_t col = 0; col < 8; ++col) {
+
+                    // The most significant bit is on the left.
+                    // col = 0 checks bit 7, col = 1 checks bit 6, etc.
+                    uint8_t spritePixel = spriteByte & (0x80 >> col);
+
+                    // Only draw if the sprite bit is set.
+                    if (spritePixel) {
+                        // Wraparound on a 64x32 screen.
+                        uint8_t screenX = (xPos + col) % 64;
+                        uint8_t screenY = (yPos + row) % 32;
+
+                        // Convert 2D coordinates to 1D buffer index.
+                        size_t bufferIndex = screenY * 64 + screenX;
+
+                        // If the pixel at this position is already 1,
+                        // and we XOR with 1 again, it will be cleared.
+                        // This is a collision.
+                        if (displayBufferRef[bufferIndex] == 1) {
+                            V[0xF] = 1;
+                        }
+
+                        // XOR drawing:
+                        // 0 ^ 1 = 1  -> pixel turns on
+                        // 1 ^ 1 = 0  -> pixel turns off
+                        displayBufferRef[bufferIndex] ^= 1;
+                    }
+                }
+            }
+            return true;
+        }
+        default: throw std::runtime_error("Unsupported opcode: " + std::to_string(opcode));
     }
+    return false;
 }

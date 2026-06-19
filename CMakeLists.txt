@@ -17,6 +17,9 @@ add_executable(CHIP8_Emulator
     src/emulator/cpu/Cpu.h
     src/emulator/cpu/Cpu.cpp
 
+    src/emulator/display/Display.h
+    src/emulator/display/Display.cpp
+
     src/emulator/Emulator.h
     src/emulator/Emulator.cpp
 )

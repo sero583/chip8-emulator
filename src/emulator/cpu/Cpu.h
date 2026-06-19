@@ -6,11 +6,12 @@
 #include <stdexcept>
 #include <string>
 
+#include "emulator/Constants.h"
 #include "emulator/memory/Ram.h"
 
 class Cpu {
 public:
-    Cpu(Ram& ramRef) : ramRef(ramRef) {}
+    Cpu(Ram& ramRef, std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef) : ramRef(ramRef), displayBufferRef(displayBufferRef) {}
 
     /**
      * Resets the CPU's state, including registers, program counter, stack pointer, and any other components.
@@ -28,8 +29,10 @@ public:
 
     /**
      * Performs a single CPU cycle, including fetching, decoding, and executing the next instruction.
+     * 
+     * @return True if the executed instruction requests a display update, false otherwise.
      */
-    void cycle();
+    bool cycle();
 
     /**
      * Gets the current value of the program counter.
@@ -47,13 +50,17 @@ public:
 
     /**
      * Executes the given opcode.
+     * 
      * @param opcode The opcode to execute.
+     * @return True if the executed instruction requests a display update, false otherwise.
      */
-    void executeOpcode(uint16_t opcode);
+    bool executeOpcode(uint16_t opcode);
 
 private:
     // Reference to RAM
     Ram& ramRef;
+    // Reference to display buffer for opcodes that manipulate the display
+    std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef;
 
     // General purpose registers V0 to VF
     std::array<uint8_t, 16> V{};

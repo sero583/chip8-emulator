@@ -25,8 +25,10 @@ public:
 
     /**
      * Resets the entire memory to zero.
+     * 
+     * @param wipeRomCopy If true, also clears the internal ROM copy used for restoring the loaded ROM.
      */
-    void reset();
+    void reset(bool wipeRomCopy = true);
 
     /**
      * Reads the byte at the given raw memory address.
@@ -68,6 +70,12 @@ public:
      *         or if the ROM would exceed available memory.
      */
     void loadROM(const std::vector<uint8_t>& rom, uint16_t startAddress = 0x200);
+
+    /**
+     * Restores the currently loaded ROM from the internal copy, allowing for a reset without needing to read from the filesystem again.
+     * This is useful for resetting the emulator state while keeping the same ROM loaded.
+     */
+    void restoreRomCopy();
 
 private:
     /**
@@ -116,4 +124,10 @@ private:
 
     // RAM must start zero-initialized.
     std::array<uint8_t, Ram::MEMORY_SIZE> memory{};
+    // Start address of the default program memory region where ROMs are loaded, used for validating ROM loading and resetting.
+    uint16_t programMemoryStart;
+    // Loaded ROM size, used for validating ROM loading and resetting.
+    size_t loadedRomSize;
+    // ROM copy for resetting without needing to read from filesystem again, since its unreliable as files could be moved or deleted.
+    std::array<uint8_t, Ram::MEMORY_SIZE> romCopy{};
 };
