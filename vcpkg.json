@@ -1,9 +1,25 @@
 {
+  "name": "chip8-emulator",
+  "version": "1.0.0",
   "dependencies": [
-    {
-      "name": "qtbase",
-      "features": ["gui", "widgets", "testlib"]
-    },
     "catch2"
-  ]
+  ],
+  "default-features": [
+    "local-qt"
+  ],
+  "features": {
+    "local-qt": {
+      "description": "Installs Qt base modules for local development",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "features": [
+            "gui",
+            "widgets",
+            "testlib"
+          ]
+        }
+      ]
+    }
+  }
 }

@@ -23,9 +23,11 @@ The emulator currently targets the original COSMAC VIP flavor of CHIP-8 and impl
 
 SuperChip and other extended CHIP-8 variants are currently not implemented. This includes instructions such as `00CN`, `00FB`, `00FC`, `00FD`, `00FE`, `00FF`, `DXY0` in SuperChip mode, `FX30`, `FX75`, and `FX85`.
 
-The `0NNN` RCA 1802 machine code call instruction is currently not supported, since it requires emulating the underlying RCA 1802 environment and is rarely needed in typical CHIP-8 programs.
+The `0NNN` RCA 1802 machine code call instruction is not supported because it would require emulating the underlying RCA 1802 environment and is rarely needed in typical CHIP-8 programs.
 
 One known behavior still planned for refinement is `FX0A`. It currently reacts to a pressed key, while COSMAC VIP behavior is commonly described as waiting until a key event is completed before continuing.
+
+We still need to add more unit tests, especially for the CPU and emulator classes.
 
 ## Features
 

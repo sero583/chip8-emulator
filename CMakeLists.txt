@@ -109,6 +109,7 @@ target_link_libraries(CHIP8_Tests PRIVATE
     Qt6::Test
 )
 
+
 if(WIN32)
     target_sources(CHIP8_Emulator PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/generated/app.rc

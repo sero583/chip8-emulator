@@ -1,24 +1,53 @@
-name: ci
+name: CI
 
 on:
   push:
     branches: ["**"]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "vcpkg.json"
+      - "vcpkg-configuration.json"
+      - ".github/workflows/**"
   pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "vcpkg.json"
+      - "vcpkg-configuration.json"
+      - ".github/workflows/**"
+
+env:
+  # Disable vcpkg telemetry to optimize configuration speed and privacy
+  VCPKG_DISABLE_METRICS: "ON"
+  # Force Node 24 runtime to suppress action deprecation warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   windows-build-test:
     runs-on: windows-2022
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
-      - name: Install Qt
+      - name: Initialize MSVC Developer Command Prompt
+        # Injects MSVC paths into the environment so Ninja can locate cl.exe
+        uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: x64
+
+      - name: Install Qt 6.9.1
+        # Downloads precompiled Qt to avoid extremely long vcpkg builds
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.9.1"
@@ -27,21 +56,77 @@ jobs:
           arch: "win64_msvc2022_64"
           cache: true
 
-      - name: Configure
+      - name: Generate Custom vcpkg Triplet
         shell: pwsh
         run: |
+          # Dynamically creates an overlay triplet to neutralize compiler tracking.
+          # This prevents weekly MSVC updates on GitHub runners from 
+          # invalidating the ABI hash and destroying the cache.
+          $TripletDir = Join-Path $env:GITHUB_WORKSPACE "custom-triplets"
+          New-Item -ItemType Directory -Force -Path $TripletDir | Out-Null
+          
+          $TripletContent = @"
+          set(VCPKG_TARGET_ARCHITECTURE x64)
+          set(VCPKG_CRT_LINKAGE dynamic)
+          set(VCPKG_LIBRARY_LINKAGE dynamic)
+          set(VCPKG_DISABLE_COMPILER_TRACKING ON)
+          "@
+          
+          $TripletContent | Out-File -FilePath (Join-Path $TripletDir "x64-windows-custom.cmake") -Encoding utf8
+          
+          # Exports the overlay directory as an environment variable for CMake
+          "VCPKG_OVERLAY_TRIPLETS=$TripletDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure vcpkg Binary Caching
+        shell: pwsh
+        run: |
+          # Defines an absolute path for the file-based binary cache
+          $vcpkgCache = Join-Path $env:GITHUB_WORKSPACE "vcpkg_archives"
+          New-Item -ItemType Directory -Force -Path $vcpkgCache | Out-Null
+          
+          # Uses the explicit 'files' backend instead of the obsolete 'x-gha' provider.
+          # The 'clear;' prefix is mandatory to override default caches.
+          "VCPKG_BINARY_SOURCES=clear;files,$vcpkgCache,readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+          $vcpkgToolchain = Join-Path $env:VCPKG_INSTALLATION_ROOT "scripts\buildsystems\vcpkg.cmake"
+          "VCPKG_TOOLCHAIN_FILE=$vcpkgToolchain" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Restore vcpkg Binary Cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}\vcpkg_archives
+          # The cache key hashes the manifest files. 'restore-keys' allows 
+          # partial cache hits if new dependencies are added.
+          key: ${{ runner.os }}-vcpkg-archives-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-archives-
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          # -G Ninja: Drastically faster than MSBuild
+          # -DVCPKG_...: Custom toolchain and tracking overrides
+          # -DCMAKE_POLICY & CMAKE_MSVC_...: Forces MSVC to use /Z7 (embedded debug info) instead of /Zi (shared PDB) 
+          #     which prevents C1041 fatal errors during highly parallel Ninja builds.
           cmake -S . -B build `
-            -G "Visual Studio 17 2022" `
-            -A x64 `
-            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
-            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR"
+            -G Ninja `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_TOOLCHAIN_FILE" `
+            -DVCPKG_TARGET_TRIPLET="x64-windows-custom" `
+            -DVCPKG_OVERLAY_TRIPLETS="$env:VCPKG_OVERLAY_TRIPLETS" `
+            -DVCPKG_INSTALL_OPTIONS="--x-abi-tools-use-exact-versions" `
+            -DVCPKG_MANIFEST_NO_DEFAULT_FEATURES=ON `
+            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
+            -DCMAKE_BUILD_TYPE=Debug `
+            -DCMAKE_POLICY_DEFAULT_CMP0141=NEW `
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
 
       - name: Build
         shell: pwsh
         run: |
-          cmake --build build --config Debug
+          # Ninja maximizes parallelization based on available CPU cores
+          cmake --build build --config Debug --parallel
 
       - name: Test
         shell: pwsh
         run: |
-          ctest --test-dir build -C Debug --output-on-failure
+          ctest --test-dir build -C Debug --output-on-failure --no-tests=error --timeout 120
