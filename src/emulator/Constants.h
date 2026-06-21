@@ -32,6 +32,15 @@ namespace MemoryProperties {
      * @brief Total size of the memory in bytes.
      */
     constexpr std::size_t MEMORY_SIZE = 4096;
+    
+    /**
+     * @brief Starting address of the standard CHIP-8 fontset.
+     */
+    constexpr uint16_t FONT_START_ADDRESS = 0x50;
+    /**
+     * @brief Bytes per hex digit character.
+     */
+    constexpr std::uint8_t FONT_HEIGHT_BYTES = 5;
 }
 
 namespace DisplayProperties {
@@ -48,9 +57,13 @@ namespace DisplayProperties {
 namespace InputProperties {
     /**
      * @brief Layout of the input buttons, mapping each button label to its corresponding key index.
-     * 
-     * Note: Could have been done without a pair-array, since labels are the hexadecimal representation - however, if I ever wanted in the future to support custom layouts with custom non-hex based labels,
-     * this would make it easier to do so.
+     *
+     * Note: This could have been done without a pair-array, since labels are the hexadecimal representation of the key index. However, this design makes it easier to support custom layouts
+     * with non-hex-based labels (e.g., curses-like keys) in the future.
+     *
+     * IMPORTANT: This array defines the number of keys the VM supports. The standard CHIP-8 VM has 16 keys (0x0–0xF), and opcodes like FX0A, EX9E, and EXA1 are defined for that range. If you
+     * extend this to more keys (e.g., 32), you remain compatible with the loop in FX0A (which uses buttonLayout.size()), but you are no longer a pure CHIP-8 implementation: standard ROMs will
+     * never use the extra keys, and you must ensure all key-related logic supports the extended range.
      */
     constexpr std::array<std::pair<char, int>, 16> buttonLayout = {{
         {'0', 0x0}, {'1', 0x1}, {'2', 0x2}, {'3', 0x3},

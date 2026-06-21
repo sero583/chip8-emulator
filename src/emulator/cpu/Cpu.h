@@ -92,30 +92,4 @@ private:
     uint16_t opcode = 0;
     // Idle state
     IdleState idleState = IdleState::notIdle;
-
-    // Opcode generic helpers
-    void copyVyToVx(uint8_t x, uint8_t y) {
-        V[x] = V[y];
-    }
-
-    void orRegisters(uint8_t x, uint8_t y) {
-        V[x] |= V[y];
-    }
-
-    void andRegisters(uint8_t x, uint8_t y) {
-        V[x] &= V[y];
-    }
-
-    void xorRegisters(uint8_t x, uint8_t y) {
-        V[x] ^= V[y];
-    }
-
-    void addRegisters(uint8_t x, uint8_t y) {
-        // Add register values using 16 bit to detect overflow / carry
-        uint16_t sum = V[x] + V[y];
-        // Set VF to 1 if result does not fit into 8 bit, otherwise 0
-        V[0xF] = (sum > 0xFF) ? 1 : 0;
-        // Store only the lower 8 bits back into Vx
-        V[x] = static_cast<uint8_t>(sum & 0x00FF);
-    }
 };

@@ -17,8 +17,7 @@ void InputWidget::setButtonsEnabled(bool enabled) {
 }
 
 void InputWidget::handleKeyEvent(QKeyEvent* event, bool isPressed) {
-    // When the widget is disabled, we should not handle key events.
-    if(isEnabled()==false) {
+    if (!isEnabled()) {
         QWidget::keyPressEvent(event);
         return;
     }
@@ -29,16 +28,21 @@ void InputWidget::handleKeyEvent(QKeyEvent* event, bool isPressed) {
         return;
     }
 
-    char key = text.toUpper()[0].toLatin1();
+    char keyLabel = text.toUpper()[0].toLatin1();
 
-    auto entry = buttonsByLabel.find(key);
-    if (entry==buttonsByLabel.end() || entry->second==nullptr) {
+    auto entry = buttonsByLabel.find(keyLabel);
+    if (entry == buttonsByLabel.end() || entry->second == nullptr) {
         QWidget::keyPressEvent(event);
         return;
     }
 
     QPushButton* button = entry->second;
+    int chip8Key = button->property("chip8Key").toInt();
+
     button->setDown(isPressed);
+    emulatorRef.setKeyState(chip8Key, isPressed);
+
+    event->accept();
 }
 
 void InputWidget::keyPressEvent(QKeyEvent* event) {

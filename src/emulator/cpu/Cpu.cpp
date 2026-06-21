@@ -124,17 +124,43 @@ bool Cpu::executeOpcode(uint16_t opcode) {
         case 0x8000: {
             // common actions
             switch(n) {
-                case 0x0: copyVyToVx(x, y); return false;
-                case 0x1: orRegisters(x, y); return false;
-                case 0x2: andRegisters(x, y); return false;
-                case 0x3: xorRegisters(x, y); return false;
-                case 0x4: addRegisters(x, y); return false;
+                // 8XY0: Set Vx = Vy
+                case 0x0:
+                    V[x] = V[y];
+                return false;
+                // 8XY1: Set Vx = Vx OR Vy
+                // COSMAC VIP quirk: VF is reset to 0 after OR
+                case 0x1:
+                    V[x] |= V[y];
+                    V[0xF] = 0;
+                return false;
+                // 8XY2: Set Vx = Vx AND Vy
+                // COSMAC VIP quirk: VF is reset to 0 after AND
+                case 0x2:
+                    V[x] &= V[y];
+                    V[0xF] = 0;
+                return false;
+                // 8XY3: Set Vx = Vx XOR Vy
+                // COSMAC VIP quirk: VF is reset to 0 after XOR
+                case 0x3:
+                    V[x] ^= V[y];
+                    V[0xF] = 0;
+                return false;
+                // 8XY4: Add Vy to Vx, set VF to 1 on carry, otherwise 0
+                // Carry happens when the 8-bit result overflows past 255
+                case 0x4: {
+                    uint16_t sum = V[x] + V[y];
+                    V[0xF] = (sum > 0xFF) ? 1 : 0;
+                    V[x] = static_cast<uint8_t>(sum & 0x00FF);
+                    return false;
+                }
                 // 8XY5: Set VF on borrow behavior, then Vx = Vx - Vy
                 case 0x5: 
                     V[0xF] = (V[x] >= V[y]) ? 1 : 0;  // 0 on borrow, 1 on no borrow
                     V[x] -= V[y];
                 return false;
-                // 8XY6: VF = least-significant bit of Vy before the shift, then Vx = Vy >> 1 
+                // 8XY6: VF = least-significant bit of Vy before the shift, then Vx = Vy >> 1
+                // COSMAC VIP quirk: shift reads from Vy; SuperChip and MegaChip shift Vx instead
                 case 0x6:
                     V[0xF] = V[y] & 1;
                     V[x] = V[y] >> 1;
@@ -145,6 +171,7 @@ bool Cpu::executeOpcode(uint16_t opcode) {
                     V[x] = V[y] - V[x];
                 return false;
                 // 8XYE: VF = most-significant bit of Vy before the shift, then Vx = Vy << 1
+                // COSMAC VIP quirk: shift reads from Vy; SuperChip and MegaChip shift Vx instead
                 case 0xE:
                     V[0xF] = V[y] >> 7;
                     V[x] = V[y] << 1;
@@ -236,42 +263,79 @@ bool Cpu::executeOpcode(uint16_t opcode) {
             throwUnknownOpcodeError(opcode);
         }
         case 0xF000: {
-            if(nn==0x0A) {
-                // FX0A: Wait for ANY keypress.
-                // When key is pressed, store key's value to register Vx
-                // Idle CPU until key press occurs.
-
-                // TODO: Need more efficient implementation, which will trigger on key release not press
-                // Since this is simpler and works for now, we keep it.
-
-                bool foundPressedKey = false;
-
-                for(uint8_t key = 0; key < 16; ++key) {
-                    if(emulatorRef.getKeyState(key)) {
-                        V[x] = key;
-                        foundPressedKey = true;
-                        break;
-                    }
-                }
-
-                if(!foundPressedKey) {
-                    idleState = IdleState::waitingForKey;
-
-                    pc -= 2; // remain on same opcode until key is pressed
-                } else {
-                    idleState = IdleState::notIdle;
-                }
-
+            switch(nn) {
+                // FX07: Set Vx = delayTimer
+                case 0x07:
+                    V[x] = delayTimer;
                 return false;
-            } else if(nn==0x1E) {
+                // FX15: Reverse of FX07, meaning delayTimer = Vx
+                case 0x15:
+                    delayTimer = V[x];
+                return false;
+                // FX18: Set soundTimer = Vx
+                case 0x18:
+                    soundTimer = V[x];
+                return false;
+                // FX29: Set I to the address of font sprite for the hexadecimal digit stored in Vx
+                case 0x29:
+                    i = MemoryProperties::FONT_START_ADDRESS + (V[x] * MemoryProperties::FONT_HEIGHT_BYTES);
+                return false;
+                // FX33: Store BCD representation of Vx in memory at I, I+1 and I+2
+                // BCD = each decimal digit stored separately: hundreds, tens, ones as 3 bytes.
+                case 0x33:
+                    emulatorRef.getRam().write(i, V[x] / 100);
+                    emulatorRef.getRam().write(i + 1, (V[x] / 10) % 10);
+                    emulatorRef.getRam().write(i + 2, V[x] % 10);
+                return false;
+                // FX55: Store V0 through Vx in memory starting at address I
+                // COSMAC VIP quirk: increment i by x + 1 after the operation; SuperChip 1.1 and MegaChip leave i unchanged
+                case 0x55:
+                    for(uint8_t currentRegisterIndex = 0; currentRegisterIndex <= x; ++currentRegisterIndex) {
+                        emulatorRef.getRam().write(i + currentRegisterIndex, V[currentRegisterIndex]);
+                    }
+                    i += x + 1;
+                return false;
+                // FX65: Load register V0 through Vx from memory starting at address I
+                // COSMAC VIP quirk: increment i by x + 1 after the operation; SuperChip 1.1 and MegaChip leave i unchanged
+                case 0x65:
+                    for(uint8_t currentRegisterIndex = 0; currentRegisterIndex <= x; ++currentRegisterIndex) {
+                        V[currentRegisterIndex] = emulatorRef.getRam().read(i + currentRegisterIndex);
+                    }
+                    i += x + 1;
+                return false;
+                // FX0A: Wait for ANY keypress.
+                case 0x0A: {
+                    // When key is pressed, store key's value to register Vx
+                    // Idle CPU until key press occurs.
+
+                    // TODO: Need more accurate & efficient implementation, which will trigger on key release not press
+                    // Since this is simpler and works for now, we keep it.
+
+                    bool foundPressedKey = false;
+
+                    for(uint8_t key = 0; key < InputProperties::buttonLayout.size(); ++key) {
+                        if(emulatorRef.getKeyState(key)) {
+                            V[x] = key;
+                            foundPressedKey = true;
+                            break;
+                        }
+                    }
+
+                    if(!foundPressedKey) {
+                        idleState = IdleState::waitingForKey;
+
+                        pc -= 2; // remain on same opcode until key is pressed
+                    } else {
+                        idleState = IdleState::notIdle;
+                    }
+                return false;
+                }
                 // FX1E: Add value in register Vx to the index register I, and store result back in I
-                i += V[x];
+                case 0x1E: 
+                    i += V[x];
                 return false;
             }
-            // TODO: more opcodes
-
-            // Remove below and enable again: throwUnknownOpcodeError(opcode); just a bypass for now for testing, since we haven't implemented all opcodes yet
-            return false;
+            throwUnknownOpcodeError(opcode);
         }
         default: throwUnknownOpcodeError(opcode);
     }

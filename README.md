@@ -12,15 +12,18 @@ It is also a fun project because it combines low-level emulation logic with desk
 
 ## Current Status
 
-The emulator is already functional and covers the core parts of CHIP-8 execution, but it is still a work in progress.
+The emulator currently targets the original COSMAC VIP flavor of CHIP-8 and implements the full classic COSMAC VIP opcode set except `0NNN` together with the relevant COSMAC VIP quirks.
 
-Some instructions in the F-family are still missing, and a few opcode behaviors still need refinement for better accuracy and compatibility.
+SuperChip and other extended CHIP-8 variants are currently not implemented. This includes instructions such as `00CN`, `00FB`, `00FC`, `00FD`, `00FE`, `00FF`, `DXY0` in SuperChip mode, `FX30`, `FX75`, and `FX85`.
 
-The `0NNN` RCA 1802 call instruction is currently not supported, since it is rarely needed in typical CHIP-8 programs and the project is focused on the most commonly used functionality. It may be added later.
+The `0NNN` RCA 1802 machine code call instruction is currently not supported, since it requires emulating the underlying RCA 1802 environment and is rarely needed in typical CHIP-8 programs.
+
+One known behavior still planned for refinement is `FX0A`. It currently reacts to a pressed key, while COSMAC VIP behavior is commonly described as waiting until a key event is completed before continuing.
 
 ## Features
 
-- CHIP-8 instruction emulation
+- Full classic COSMAC VIP CHIP-8 opcode support
+- COSMAC VIP-compatible opcode quirks
 - ROM loading support
 - Display rendering with Qt
 - Input handling, including a virtual keypad
@@ -29,6 +32,21 @@ The `0NNN` RCA 1802 call instruction is currently not supported, since it is rar
 - Unit tests for core components
 - CMake-based build setup
 - Intended to work on Windows, macOS, and Linux
+
+## Not Supported Yet
+
+The emulator currently does not implement SuperChip or other CHIP-8 extensions. This means the following extended instructions are intentionally unsupported at the moment:
+
+- `00CN` - scroll display down
+- `00FB` - scroll display right
+- `00FC` - scroll display left
+- `00FD` - exit interpreter
+- `00FE` - low-resolution mode switching
+- `00FF` - high-resolution mode switching
+- `DXY0` - 16x16 sprite drawing in SuperChip mode
+- `FX30` - big font sprite addressing
+- `FX75` - RPL flag store
+- `FX85` - RPL flag load
 
 ## Tech Stack
 
@@ -169,6 +187,8 @@ If CMake cannot find Qt or Catch2, double-check that:
 - both dependencies are installed
 - their CMake package files are available
 - `CMAKE_PREFIX_PATH` points to the correct locations
+
+This emulator currently focuses on classic COSMAC VIP CHIP-8 behavior rather than cross-variant compatibility. Some modern test ROMs may assume SuperChip behavior or non-VIP quirks for instructions such as `FX55` and `FX65`, so test results can differ depending on which ROM suite is used.
 
 ## Resources
 
