@@ -1,5 +1,12 @@
 # CHIP-8 Emulator
 
+[![CI](https://github.com/sero583/chip8-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/sero583/chip8-emulator/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
+![Qt 6](https://img.shields.io/badge/Qt-6-41CD52.svg?logo=qt&logoColor=white)
+![CMake](https://img.shields.io/badge/CMake-3.20%2B-064F8C.svg?logo=cmake&logoColor=white)
+![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg?logo=windows&logoColor=blue)
+
 A CHIP-8 emulator written in modern C++ with Qt for rendering, input handling, and the desktop user interface.
 
 This project started as a personal hobby project with a focus on clean architecture, readable code, and maintainable structure. It also serves as a compact example of emulator architecture, Qt desktop application development, and testable modern C++ project organization.
