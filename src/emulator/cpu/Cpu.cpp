@@ -1,18 +1,35 @@
-#include "Cpu.h"
+#include <cstdlib> 
+#include <sstream>
+#include <iomanip>
+
+#include "emulator/cpu/Cpu.h"
+#include "emulator/Emulator.h"
+
+namespace {
+    [[noreturn]] void throwUnknownOpcodeError(uint16_t opcode, const char* prefix = "") {
+        std::ostringstream oss;
+        oss << prefix
+            << "Unsupported opcode: " << opcode
+            << " (0x" << std::uppercase << std::hex
+            << std::setw(4) << std::setfill('0') << opcode << ")";
+        throw std::runtime_error(oss.str());
+    }
+}
 
 void Cpu::reset() {
     V.fill(0);
     i = 0;
-    pc = Ram::PROGRAM_MEM_MIN;
+    pc = MemoryProperties::PROGRAM_MEM_MIN;
     sp = 0;
     stack.fill(0);
     delayTimer = 0;
     soundTimer = 0;
     opcode = 0;
+    idleState = IdleState::notIdle;
 }
 
 uint16_t Cpu::fetchOpcode(bool incrementPc) {
-    opcode = ramRef.readOpcode(pc);
+    opcode = emulatorRef.getRam().readOpcode(pc);
 
     // increment to next opcode when enabled
     if(incrementPc) {
@@ -50,46 +67,110 @@ bool Cpu::executeOpcode(uint16_t opcode) {
     uint16_t nnn = opcode & 0x0FFF;
 
     switch(instruction) {
-        case 0x0000:
+        case 0x0000: {
             if (opcode == 0x00E0) {
                 // 00E0: clear display
                 displayBufferRef.fill(0);
                 return true;
             } else if (opcode == 0x00EE) {
-                // 00EE: return from subroutine
-                sp--;
-                pc = stack[sp];
-            } else {
-                throw std::runtime_error("Unknown 0x0000 opcode: " + std::to_string(opcode));
+                if(sp==0) {
+                    throw std::runtime_error("Stack underflow on 00EE: ROM returned from an empty stack");
+                }
+                pc = stack[--sp];
+                break;
             }
-        break;
-        // Set program counter to NNN
+            // 0NNN: Bonus task - only OGs implement an RCA 1802 emulator... :)
+            throwUnknownOpcodeError(opcode);
+        }
+        // 1NNN: Set program counter to NNN
         case 0x1000:
             pc = nnn;
         break;
-        // Sets Vx to NN
+        // 0x2NNN: Call subroutine from NNN, push current (+2, in our case by one since fetch already increments) PC to the stack, increment SP, set PC = NNN.
+        case 0x2000:
+            if (sp >= stack.size()) {
+                throw std::runtime_error("Stack overflow on 2NNN");
+            }
+            stack[sp++] = pc;
+            pc = nnn;
+        break;
+        // 3XNN: Skip the following instruction if the value of register Vx equals NN.
+        case 0x3000:
+            if(V[x]==nn) {
+                pc += 2;
+            }
+        break;
+        // 4XNN: Skip the following instruction if the value of register Vx is not equal to NN.
+        case 0x4000:
+            if(V[x]!=nn) {
+                pc += 2;
+            }
+        break;
+        // 5XY0: Skip next instruction, if value in register Vx is equal to the value in register Vy and n = 0
+        case 0x5000:
+            if(n==0 && V[x]==V[y]) {
+                pc += 2;
+            }
+        break;
+        // 6XNN: Sets Vx to NN
         case 0x6000: 
             V[x] = nn;
         break;
-        // Add NN to Vx without affecting carry flag
+        // 7XNN: Add NN to Vx without affecting carry flag
         case 0x7000:
             V[x] += nn;
         break;
-        case 0x8000:
+        // 8-group: Arithmetic & bitwise operations
+        case 0x8000: {
+            // common actions
             switch(n) {
-                case 0x0: copyVyToVx(x, y); break;
-                case 0x1: orRegisters(x, y); break;
-                case 0x2: andRegisters(x, y); break;
-                case 0x3: xorRegisters(x, y); break;
-                case 0x4: addRegisters(x, y); break;
-                default: throw std::runtime_error("Unsupported 8XY? opcode: " + std::to_string(opcode));
+                case 0x0: copyVyToVx(x, y); return false;
+                case 0x1: orRegisters(x, y); return false;
+                case 0x2: andRegisters(x, y); return false;
+                case 0x3: xorRegisters(x, y); return false;
+                case 0x4: addRegisters(x, y); return false;
+                // 8XY5: Set VF on borrow behavior, then Vx = Vx - Vy
+                case 0x5: 
+                    V[0xF] = (V[x] >= V[y]) ? 1 : 0;  // 0 on borrow, 1 on no borrow
+                    V[x] -= V[y];
+                return false;
+                // 8XY6: VF = least-significant bit of Vy before the shift, then Vx = Vy >> 1 
+                case 0x6:
+                    V[0xF] = V[y] & 1;
+                    V[x] = V[y] >> 1;
+                return false;
+                // 8XY7: Vx = Vy - Vx, set VF on borrow behavior.
+                case 0x7:
+                    V[0xF] = (V[y] >= V[x]) ? 1 : 0;  // 0 on borrow, 1 on no borrow
+                    V[x] = V[y] - V[x];
+                return false;
+                // 8XYE: VF = most-significant bit of Vy before the shift, then Vx = Vy << 1
+                case 0xE:
+                    V[0xF] = V[y] >> 7;
+                    V[x] = V[y] << 1;
+                return false;
+            }
+            throwUnknownOpcodeError(opcode);
+        }
+        // 9XY0: Counterpart of 5XY0 - when Vx != Vy and n = 0, skip instruction
+        case 0x9000:
+            if(n==0 && V[x]!=V[y]) {
+                pc += 2;
             }
         break;
-        // Set index register I to address NNN
+        // ANNN: Set index register I to address NNN
         case 0xA000:
             i = nnn;
         break;
-        // Draw sprite on Position (Vx, Vy) at height N from memory address I, VF shows collision
+        // BNNN: Jump to location NNN + V0
+        case 0xB000:
+            pc = nnn + V[0];
+        break;
+        // CXNN: Chip 8's randomizer - Set Vx = random byte AND NN
+        case 0xC000:
+            V[x] = static_cast<uint8_t>(rand()) & nn;
+        break;
+        // DXYN: Draw sprite on Position (Vx, Vy) at height N from memory address I, VF shows collision
         case 0xD000: {
             // DXYN:
             // Draw a sprite at coordinate (VX, VY).
@@ -110,7 +191,7 @@ bool Cpu::executeOpcode(uint16_t opcode) {
 
             // Each sprite row is 1 byte in memory.
             for (uint8_t row = 0; row < height; ++row) {
-                uint8_t spriteByte = ramRef.read(i + row);
+                uint8_t spriteByte = emulatorRef.getRam().read(i + row);
 
                 // A sprite is always 8 bits wide.
                 for (uint8_t col = 0; col < 8; ++col) {
@@ -144,7 +225,55 @@ bool Cpu::executeOpcode(uint16_t opcode) {
             }
             return true;
         }
-        default: throw std::runtime_error("Unsupported opcode: " + std::to_string(opcode));
+        case 0xE000: {
+            // EX9E: skip if pressed, EXA1: skip if not pressed
+            bool keyPressed = emulatorRef.getKeyState(V[x]);
+
+            if((y == 0x9 && n == 0xE && keyPressed) || (y == 0xA && n == 0x1 && !keyPressed)) {
+                pc += 2;
+                return false;
+            }
+            throwUnknownOpcodeError(opcode);
+        }
+        case 0xF000: {
+            if(nn==0x0A) {
+                // FX0A: Wait for ANY keypress.
+                // When key is pressed, store key's value to register Vx
+                // Idle CPU until key press occurs.
+
+                // TODO: Need more efficient implementation, which will trigger on key release not press
+                // Since this is simpler and works for now, we keep it.
+
+                bool foundPressedKey = false;
+
+                for(uint8_t key = 0; key < 16; ++key) {
+                    if(emulatorRef.getKeyState(key)) {
+                        V[x] = key;
+                        foundPressedKey = true;
+                        break;
+                    }
+                }
+
+                if(!foundPressedKey) {
+                    idleState = IdleState::waitingForKey;
+
+                    pc -= 2; // remain on same opcode until key is pressed
+                } else {
+                    idleState = IdleState::notIdle;
+                }
+
+                return false;
+            } else if(nn==0x1E) {
+                // FX1E: Add value in register Vx to the index register I, and store result back in I
+                i += V[x];
+                return false;
+            }
+            // TODO: more opcodes
+
+            // Remove below and enable again: throwUnknownOpcodeError(opcode); just a bypass for now for testing, since we haven't implemented all opcodes yet
+            return false;
+        }
+        default: throwUnknownOpcodeError(opcode);
     }
     return false;
 }

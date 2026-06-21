@@ -5,13 +5,10 @@
 #include <cstdint>
 #include <vector>
 
+#include "emulator/Constants.h"
+
 class Ram {
 public:
-    static constexpr uint16_t RAW_MEM_MIN = 0x000;
-    static constexpr uint16_t RAW_MEM_MAX = 0xFFF;
-    static constexpr uint16_t PROGRAM_MEM_MIN = 0x200;
-    static constexpr std::size_t MEMORY_SIZE = 4096;
-
     /**
      * Result of a memory address bounds check.
      */
@@ -123,11 +120,11 @@ private:
     AddressValidationResult validateProgramMemoryAddress(uint16_t address, bool throwException = false) const;
 
     // RAM must start zero-initialized.
-    std::array<uint8_t, Ram::MEMORY_SIZE> memory{};
+    std::array<uint8_t, MemoryProperties::MEMORY_SIZE> memory{};
     // Start address of the default program memory region where ROMs are loaded, used for validating ROM loading and resetting.
     uint16_t programMemoryStart;
     // Loaded ROM size, used for validating ROM loading and resetting.
     size_t loadedRomSize;
     // ROM copy for resetting without needing to read from filesystem again, since its unreliable as files could be moved or deleted.
-    std::array<uint8_t, Ram::MEMORY_SIZE> romCopy{};
+    std::array<uint8_t, MemoryProperties::MEMORY_SIZE> romCopy{};
 };

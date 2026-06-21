@@ -7,7 +7,7 @@
 #include <QString>
 #include <QIODevice>
 
-#include "Emulator.h"
+#include "emulator/Emulator.h"
 
 void Emulator::reset(bool restoreRom, bool wipeRomCopy) {
     if(restoreRom && wipeRomCopy) {
@@ -23,8 +23,8 @@ void Emulator::reset(bool restoreRom, bool wipeRomCopy) {
     }
 }
 
-void Emulator::loadROM(const std::vector<uint8_t>& rom) {
-    ram.loadROM(rom);
+Ram Emulator::getRam() const {
+    return ram;
 }
 
 bool Emulator::loadROMFromFile(const QString& filePath) {
@@ -52,4 +52,20 @@ void Emulator::resetCpu() {
 
 const std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& Emulator::getDisplayBuffer() const {
     return displayBuffer;
+}
+
+void Emulator::setKeyState(uint8_t key, bool pressed) {
+    if(key > 0xF) {
+        throw std::out_of_range("Key index must be between 0x0 and 0xF.");
+    }
+    keyState[key] = pressed;
+
+    // TODO: Pass key state changes to CPU
+}
+
+bool Emulator::getKeyState(uint8_t key) const {
+    if(key > 0xF) {
+        throw std::out_of_range("Key index must be between 0x0 and 0xF.");
+    }
+    return keyState[key];
 }

@@ -40,11 +40,11 @@ Ram::AddressValidationResult Ram::validateAddressInRange(
 }
 
 Ram::AddressValidationResult Ram::validateRawMemoryAddress(uint16_t address, bool throwException) const {
-    return validateAddressInRange(address, Ram::RAW_MEM_MIN, Ram::RAW_MEM_MAX, throwException, "address");
+    return validateAddressInRange(address, MemoryProperties::RAW_MEM_MIN, MemoryProperties::RAW_MEM_MAX, throwException, "address");
 }
 
 Ram::AddressValidationResult Ram::validateProgramMemoryAddress(uint16_t address, bool throwException) const {
-    return validateAddressInRange(address, Ram::PROGRAM_MEM_MIN, Ram::RAW_MEM_MAX, throwException, "startAddress");
+    return validateAddressInRange(address, MemoryProperties::PROGRAM_MEM_MIN, MemoryProperties::RAW_MEM_MAX, throwException, "startAddress");
 }
 
 uint8_t Ram::read(uint16_t address) const {

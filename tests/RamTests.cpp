@@ -1,9 +1,11 @@
-#include <catch2/catch_all.hpp>
-#include "emulator/memory/Ram.h"
-
 #include <cstdint>
 #include <stdexcept>
 #include <vector>
+
+#include <catch2/catch_all.hpp>
+
+#include "emulator/Constants.h"
+#include "emulator/memory/Ram.h"
 
 namespace {
     constexpr uint8_t DefaultByte = 0x00;
@@ -16,12 +18,12 @@ namespace {
     constexpr uint8_t OpcodeLowByte = 0xCD;
     constexpr uint16_t ExpectedOpcode = 0xABCD;
 
-    constexpr uint16_t LowestRawAddress = Ram::RAW_MEM_MIN;
-    constexpr uint16_t HighestRawAddress = Ram::RAW_MEM_MAX;
-    constexpr uint16_t ProgramStartAddress = Ram::PROGRAM_MEM_MIN;
-    constexpr uint16_t LastOpcodeStartAddress = Ram::RAW_MEM_MAX - 1;
-    constexpr uint16_t InvalidHighAddress = Ram::RAW_MEM_MAX + 1;
-    constexpr uint16_t InvalidProgramAddress = Ram::PROGRAM_MEM_MIN - 1;
+    constexpr uint16_t LowestRawAddress = MemoryProperties::RAW_MEM_MIN;
+    constexpr uint16_t HighestRawAddress = MemoryProperties::RAW_MEM_MAX;
+    constexpr uint16_t ProgramStartAddress = MemoryProperties::PROGRAM_MEM_MIN;
+    constexpr uint16_t LastOpcodeStartAddress = MemoryProperties::RAW_MEM_MAX - 1;
+    constexpr uint16_t InvalidHighAddress = MemoryProperties::RAW_MEM_MAX + 1;
+    constexpr uint16_t InvalidProgramAddress = MemoryProperties::PROGRAM_MEM_MIN - 1;
 
     constexpr uint8_t RomByte1 = 0xDE;
     constexpr uint8_t RomByte2 = 0xAD;

@@ -2,25 +2,34 @@
 
 #include <array>
 #include <cstdint>
-
 #include <stdexcept>
 #include <string>
 
 #include "emulator/Constants.h"
-#include "emulator/memory/Ram.h"
+
+class Emulator;
+
+namespace {
+    enum IdleState {
+        waitingForKey,
+        notIdle
+    };
+}
 
 class Cpu {
 public:
-    Cpu(Ram& ramRef, std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef) : ramRef(ramRef), displayBufferRef(displayBufferRef) {}
+    Cpu(Emulator& emulatorRef, std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef) : emulatorRef(emulatorRef), displayBufferRef(displayBufferRef) {};
 
     /**
+     * @brief Resets the CPU. 
+     * 
      * Resets the CPU's state, including registers, program counter, stack pointer, and any other components.
      * Currently, this is a placeholder method, but it can be expanded in the future to include actual CPU state reset logic.
      */
     void reset();
 
     /**
-     * Fetches the next opcode from memory.
+     * @brief Fetches the next opcode from memory.
      * 
      * @param incrementPc Increments program counter by two when enabled after fetching.
      * @return The 16-bit opcode fetched from memory.
@@ -28,6 +37,8 @@ public:
     uint16_t fetchOpcode(bool incrementPc = true);
 
     /**
+     * @brief Performs a single CPU cycle. 
+     * 
      * Performs a single CPU cycle, including fetching, decoding, and executing the next instruction.
      * 
      * @return True if the executed instruction requests a display update, false otherwise.
@@ -35,13 +46,14 @@ public:
     bool cycle();
 
     /**
-     * Gets the current value of the program counter.
+     * @brief Gets the current value of the program counter.
+     * 
      * @return The current program counter value.
      */
     uint16_t getProgramCounter() const;
 
     /**
-     * Gets the current value of a general purpose register.
+     * @brief Gets the current value of a general purpose register.
      * 
      * @param index The index of the register to retrieve.
      * @return The current value of the specified register.
@@ -49,7 +61,7 @@ public:
     uint8_t getRegister(uint8_t index) const;
 
     /**
-     * Executes the given opcode.
+     * @brief Executes the given opcode.
      * 
      * @param opcode The opcode to execute.
      * @return True if the executed instruction requests a display update, false otherwise.
@@ -57,8 +69,8 @@ public:
     bool executeOpcode(uint16_t opcode);
 
 private:
-    // Reference to RAM
-    Ram& ramRef;
+    // Reference to Emulator to access memory and other components as needed for instruction execution
+    Emulator& emulatorRef;
     // Reference to display buffer for opcodes that manipulate the display
     std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef;
 
@@ -67,7 +79,7 @@ private:
     // Index register
     uint16_t i = 0;
     // Program counter
-    uint16_t pc = Ram::PROGRAM_MEM_MIN;
+    uint16_t pc = MemoryProperties::PROGRAM_MEM_MIN;
     // Stack pointer
     uint8_t sp = 0;
     // Stack (up to 16 levels)
@@ -78,6 +90,8 @@ private:
     uint8_t soundTimer = 0;
     // Current opcode
     uint16_t opcode = 0;
+    // Idle state
+    IdleState idleState = IdleState::notIdle;
 
     // Opcode generic helpers
     void copyVyToVx(uint8_t x, uint8_t y) {

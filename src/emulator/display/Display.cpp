@@ -4,7 +4,12 @@
 #include "emulator/display/Display.h"
 #include "emulator/Constants.h"
 
-Display::Display(Emulator& emulatorRef) : QWidget(), emulatorRef(emulatorRef) {}
+Display::Display(Emulator& emulatorRef) : QWidget(), emulatorRef(&emulatorRef), bufferOverride(nullptr) {}
+
+Display::Display(
+    const std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& testBuffer,
+    QWidget* parent
+) : QWidget(parent), emulatorRef(nullptr), bufferOverride(&testBuffer) {}
 
 void Display::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event);
@@ -14,7 +19,7 @@ void Display::paintEvent(QPaintEvent* event) {
     // Background
     painter.fillRect(rect(), Qt::black);
 
-    const auto& buffer = emulatorRef.getDisplayBuffer();
+    const auto& buffer = bufferOverride ? *bufferOverride : emulatorRef->getDisplayBuffer();
 
     const int pixelSize = std::min(width() / DisplayProperties::CHIP8_DISPLAY_WIDTH, height() / DisplayProperties::CHIP8_DISPLAY_HEIGHT);
 

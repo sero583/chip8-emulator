@@ -27,10 +27,23 @@ public:
      * Stores a reference to the emulator so the widget can access
      * the current framebuffer when repainting.
      *
-     * @param emulatorRef Reference to the emulator instance that owns
-     *                 the display state.
+     * @param emulatorRef Reference to the emulator instance that owns the display state.
      */
     explicit Display(Emulator& emulatorRef);
+
+    /**
+     * @brief Creates the display widget backed by a direct framebuffer reference.
+     *
+     * Intended for tests so rendering can be verified without exposing mutable
+     * framebuffer access through the emulator API.
+     *
+     * @param testBuffer Framebuffer to render.
+     * @param parent Optional parent widget.
+     */
+    explicit Display(
+        const std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& testBuffer,
+        QWidget* parent = nullptr
+    );
 
 protected:
     /**
@@ -50,5 +63,13 @@ private:
      *
      * Used to access the current CHIP-8 display buffer during painting.
      */
-    Emulator& emulatorRef;
+    Emulator* emulatorRef = nullptr;
+    
+    /**
+     * @brief Optional framebuffer override used primarily for rendering tests.
+     *
+     * When set, the widget renders this buffer instead of reading the framebuffer
+     * from the emulator instance.
+     */
+    const std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>* bufferOverride = nullptr;
 };
