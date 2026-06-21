@@ -1,0 +1,138 @@
+name: CD / Release
+
+on:
+  push:
+    tags:
+      # Trigger workflow on version tag push (e.g., v1.0.0, v2.1.3)
+      - "v*.*.*"
+
+env:
+  # Disable vcpkg telemetry to optimize configuration speed and privacy
+  VCPKG_DISABLE_METRICS: "ON"
+  # Force Node 24 runtime to suppress action deprecation warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  windows-release:
+    runs-on: windows-2022
+    
+    # Grant required token permissions to create and modify GitHub Releases
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Initialize MSVC Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: x64
+
+      - name: Install Qt 6.9.1
+        # Provision precompiled Qt binaries to bypass vcpkg source compilation
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.9.1"
+          host: "windows"
+          target: "desktop"
+          arch: "win64_msvc2022_64"
+          cache: true
+
+      - name: Generate Custom vcpkg Triplet
+        shell: pwsh
+        run: |
+          # Generate overlay triplet to disable compiler tracking and stabilize ABI hashes
+          $TripletDir = Join-Path $env:GITHUB_WORKSPACE "custom-triplets"
+          New-Item -ItemType Directory -Force -Path $TripletDir | Out-Null
+          
+          $TripletContent = @"
+          set(VCPKG_TARGET_ARCHITECTURE x64)
+          set(VCPKG_CRT_LINKAGE dynamic)
+          set(VCPKG_LIBRARY_LINKAGE dynamic)
+          set(VCPKG_DISABLE_COMPILER_TRACKING ON)
+          "@
+          
+          $TripletContent | Out-File -FilePath (Join-Path $TripletDir "x64-windows-custom.cmake") -Encoding utf8
+          
+          # Export the overlay directory as an environment variable for CMake integration
+          "VCPKG_OVERLAY_TRIPLETS=$TripletDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Configure vcpkg Binary Caching
+        shell: pwsh
+        run: |
+          # Configure explicit file-based caching backend for vcpkg
+          $vcpkgCache = Join-Path $env:GITHUB_WORKSPACE "vcpkg_archives"
+          New-Item -ItemType Directory -Force -Path $vcpkgCache | Out-Null
+          "VCPKG_BINARY_SOURCES=clear;files,$vcpkgCache,readwrite" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+          $vcpkgToolchain = Join-Path $env:VCPKG_INSTALLATION_ROOT "scripts\buildsystems\vcpkg.cmake"
+          "VCPKG_TOOLCHAIN_FILE=$vcpkgToolchain" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Restore vcpkg Binary Cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}\vcpkg_archives
+          # Hash manifest files to determine cache hits
+          key: ${{ runner.os }}-vcpkg-archives-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-archives-
+
+      - name: Configure CMake (Release Mode)
+        shell: pwsh
+        run: |
+          # Configure project for Release build, bypass local-qt, and enforce /Z7 debug info format
+          cmake -S . -B build `
+            -G Ninja `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_TOOLCHAIN_FILE" `
+            -DVCPKG_TARGET_TRIPLET="x64-windows-custom" `
+            -DVCPKG_OVERLAY_TRIPLETS="$env:VCPKG_OVERLAY_TRIPLETS" `
+            -DVCPKG_INSTALL_OPTIONS="--x-abi-tools-use-exact-versions" `
+            -DVCPKG_MANIFEST_NO_DEFAULT_FEATURES=ON `
+            -DCMAKE_PREFIX_PATH="$env:Qt6_DIR" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_POLICY_DEFAULT_CMP0141=NEW `
+            -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
+
+      - name: Build (Release Mode)
+        shell: pwsh
+        run: |
+          # Execute parallel compilation step
+          cmake --build build --config Release --parallel
+
+      - name: Test
+        shell: pwsh
+        run: |
+          # Execute test suite; pipeline fails immediately upon test failure
+          ctest --test-dir build -C Release --output-on-failure --no-tests=error --timeout 120
+
+      - name: Package Windows Release
+        shell: pwsh
+        run: |
+          # Create staging directory for deployment assets
+          $ReleaseDir = "CHIP8-Emulator"
+          New-Item -ItemType Directory -Force -Path $ReleaseDir | Out-Null
+          
+          # Copy compiled executable and documentation to staging directory
+          Copy-Item -Path "build\CHIP8_Emulator.exe" -Destination "$ReleaseDir\"
+          Copy-Item -Path "README.md" -Destination "$ReleaseDir\"
+          Copy-Item -Path "LICENSE" -Destination "$ReleaseDir\"
+          
+          # Deploy Qt dependencies to staging directory alongside executable
+          windeployqt --no-translations --compiler-runtime --dir $ReleaseDir "$ReleaseDir\CHIP8_Emulator.exe"
+          
+          # Compress staging directory into release archive
+          Compress-Archive -Path "$ReleaseDir\*" -DestinationPath "CHIP8-Emulator-Windows.zip"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Attach compressed archive to the release assets
+          files: CHIP8-Emulator-Windows.zip
+          # Generate automatic release notes from commit history
+          generate_release_notes: true
