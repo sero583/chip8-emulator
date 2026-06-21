@@ -69,27 +69,48 @@ public:
     bool executeOpcode(uint16_t opcode);
 
 private:
-    // Reference to Emulator to access memory and other components as needed for instruction execution
+    /**
+     * @brief Reference to the emulator instance, used to access memory and other components as needed for instruction execution.
+     */
     Emulator& emulatorRef;
-    // Reference to display buffer for opcodes that manipulate the display
+    /**
+     * @brief Reference to the display buffer, used for opcodes that manipulate the display.
+     */
     std::array<uint8_t, DisplayProperties::CHIP8_DISPLAY_WIDTH * DisplayProperties::CHIP8_DISPLAY_HEIGHT>& displayBufferRef;
-
-    // General purpose registers V0 to VF
+    /**
+     * @brief General purpose registers V0 to VF
+     */
     std::array<uint8_t, 16> V{};
-    // Index register
+    /**
+     * @brief Index register
+     */
     uint16_t i = 0;
-    // Program counter
+    /**
+     * @brief Program counter
+     */
     uint16_t pc = MemoryProperties::PROGRAM_MEM_MIN;
-    // Stack pointer
+    /**
+     * @brief Stack pointer
+     */
     uint8_t sp = 0;
-    // Stack (up to 16 levels)
+    /**
+     * @brief Stack (up to 16 levels)
+     */
     std::array<uint16_t, 16> stack{};
-    // Delay timer
+    /**
+     * @brief Delay timer
+     */
     uint8_t delayTimer = 0;
-    // Sound timer
+    /**
+     * @brief Sound timer
+     */
     uint8_t soundTimer = 0;
-    // Current opcode
+    /**
+     * @brief Current opcode
+     */
     uint16_t opcode = 0;
-    // Idle state
+    /**
+     * @brief Idle state
+     */
     IdleState idleState = IdleState::notIdle;
 };

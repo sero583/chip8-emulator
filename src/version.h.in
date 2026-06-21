@@ -1,0 +1,2 @@
+#pragma once
+#define CHIP8_VERSION "@PROJECT_VERSION@"

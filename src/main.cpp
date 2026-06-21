@@ -4,8 +4,9 @@
 #include <QCoreApplication>
 #include <QFileDialog>
 #include <QFrame>
-#include <QLabel>
 #include <QGuiApplication>
+#include <QIcon>
+#include <QLabel>
 #include <QMainWindow>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -16,6 +17,13 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <shobjidl_core.h>
+#endif
+
+#include "version.h"
 
 #include "emulator/Constants.h"
 #include "emulator/display/Display.h"
@@ -147,13 +155,21 @@ namespace {
 }
 
 int main(int argc, char* argv[]) {
+    #ifdef _WIN32
+        SetCurrentProcessExplicitAppUserModelID(L"serhat.gueler.dev.CHIP8Emulator");
+    #endif
     // Init QT
     QApplication app(argc, argv);
 
     // Set application details for settings storage
-    QCoreApplication::setOrganizationName("sero583");
-    QCoreApplication::setApplicationName("CHIP8_Emulator");
+    app.setOrganizationName("sero583");
+    app.setOrganizationDomain("serhat.gueler.dev");
+    app.setApplicationName("CHIP8 Emulator");
+    app.setApplicationDisplayName("CHIP-8 Emulator");
+    app.setApplicationVersion(CHIP8_VERSION);
+    app.setWindowIcon(QIcon(":/assets/logo.png"));
 
+    // Create QT settings instance
     QSettings settings;
 
     // Create QT window
@@ -206,12 +222,13 @@ int main(int argc, char* argv[]) {
         aboutBox.setTextFormat(Qt::RichText);
         aboutBox.setStandardButtons(QMessageBox::Ok);
         aboutBox.setText(
-            "<h3>CHIP-8 Emulator</h3>"
+            "<h3>CHIP-8 Emulator v" CHIP8_VERSION "</h3>"
             "<p>"
             "An open-source hobby project CHIP-8 emulator developed by <b>Serhat Güler (sero583)</b> using C++20 and Qt6."
             "</p>"
             "<p>"
             "<a href=\"https://serhat.gueler.dev\">sero583's Website</a><br>"
+            "<a href=\"https://github.com/sero583/\">sero583's GitHub</a><br>"
             "<a href=\"https://github.com/sero583/chip8-emulator\">GitHub Repository of this Project</a>"
             "</p>"
         );

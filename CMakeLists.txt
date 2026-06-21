@@ -1,8 +1,27 @@
 cmake_minimum_required(VERSION 3.20)
-project(CHIP8_Emulator VERSION 0.1.0 LANGUAGES CXX)
+project(CHIP8_Emulator VERSION 1.0.0 LANGUAGES CXX)
 
+# Generate version header for single source of truth on version info
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/version.h
+    @ONLY
+)
+
+# Generate windows-specific files
+if(WIN32)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/app.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/app.rc
+        @ONLY
+    )
+endif()
+
+# Set project properties and C++ standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_AUTORCC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Test)
 
@@ -10,6 +29,7 @@ qt_standard_project_setup()
 
 add_executable(CHIP8_Emulator
     src/main.cpp
+    resources.qrc
 
     src/emulator/memory/Ram.h
     src/emulator/memory/Ram.cpp
@@ -29,7 +49,10 @@ add_executable(CHIP8_Emulator
     src/emulator/Constants.h
 )
 
-target_include_directories(CHIP8_Emulator PRIVATE src)
+target_include_directories(CHIP8_Emulator PRIVATE
+    src
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
+)
 target_link_libraries(CHIP8_Emulator PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -74,7 +97,10 @@ add_executable(CHIP8_Tests
     tests/TestUtils.cpp
 )
 
-target_include_directories(CHIP8_Tests PRIVATE src)
+target_include_directories(CHIP8_Tests PRIVATE
+    src
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
+)
 target_link_libraries(CHIP8_Tests PRIVATE
     Catch2::Catch2WithMain
     Qt6::Core
@@ -84,6 +110,12 @@ target_link_libraries(CHIP8_Tests PRIVATE
 )
 
 if(WIN32)
+    target_sources(CHIP8_Emulator PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/app.rc
+    )
+    # Link Shell32 for Windows AppUserModelID support used by SetCurrentProcessExplicitAppUserModelID.
+    target_link_libraries(CHIP8_Emulator PRIVATE Shell32)
+
     # Possible plugin folders
     set(QT6_PLATFORM_CANDIDATE_DIRS
         "${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/debug/Qt6/plugins/platforms"
